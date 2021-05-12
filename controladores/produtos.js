@@ -1,5 +1,5 @@
 const fs = require("fs/promises");
-const {addBusinessDays} = require("date-fns");
+const {addBusinessDays, format} = require("date-fns");
 const axios = require("axios");
 const {lerCarrinho, atualizarCarrinho, lerEstoque, atualizarEstoque, todosProdutosComEstoque, carrinhoVazio, esvaziarCarrinho, validarDados, instanciaAxios} = require("./funcoes-apoio");
 
@@ -224,79 +224,42 @@ async function finalizarCompra (req,res) {
         produtoDoEstoque.estoque = produtoDoEstoque.estoque - produtoDoCarrinho.quantidade;
     }
 
-    await atualizarEstoque(estoque);
-
-    const momento = new Date();
-
-    const compra = {
-        mensagem: "Compra realizada com sucesso.",
-        subtotal: carrinho.subtotal,
-        dataDeEntrega: carrinho.dataDeEntrega = addBusinessDays(momento, 15),
-        valorDoFrete: carrinho.valorDoFrete,
-        totalAPagar: carrinho.totalAPagar,
-        produtos:  carrinho.produtos
-    };
-
-    esvaziarCarrinho(carrinho);
-
-    //res.status(200).json(compra);
     const data = new Date();
-      data.setDate(data.getDate() + 3);
-      const stringData = `${data.getFullYear()}-${String(
-        data.getMonth() + 1
-      ).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
+    const dataVencimento = format(addBusinessDays(data, 3), "yyyy-MM-dd");
 
-    // const bodyPagarme = {
-    //     amount: compra.totalAPagar,
-    //     payment_method: "boleto",
-    //     boleto_expiration_date: stringData,
-    //     customer: {
-    //         external_id: "1",
-    //         name: dados.name,
-    //         type: dados.type,
-    //         country: dados.country,
-    //         email: "testando@gmail.com",
-    //         documents: [
-    //             {
-    //                 type: dados.documents[0].type,
-    //                 number: dados.documents[0].number,
-    //             },
-    //         ],
-    //         phone_numbers: ["+5571999885566"],
-    //         birthday: "1994-06-03",
-    //     }
-    // }
-    const pagarme = {
-        amount: 26450,
+
+    const bodyPagarme = {
+        amount: carrinho.totalAPagar,
         payment_method: "boleto",
+        boleto_expiration_date: dataVencimento,
         customer: {
             external_id: "1",
-            name: "Aardvark Silva",
-            type: "individual",
-            country: "br",
-            email: "testando@gmail.com",
+            name: dados.name,
+            type: dados.type,
+            country: dados.country,
+            email: dados.email,
             documents: [
                 {
-                    type: "cpf",
-                    number: "35457786498"
-                }
+                    type: dados.documents[0].type,
+                    number: dados.documents[0].number,
+                },
             ],
-            phone_numbers: ["+5571912345678"]
-        },
-        api_key: "ak_test_rFF3WFkcS9DRdBK7Ocw6QOzOOQEScS"
+            phone_numbers: dados.phone_numbers,
+        }
     }
 
-
     try {
-        console.log("entrou");
-        // const pedido = await instanciaAxios.post("transactions", bodyPagarme);
-        axios.post("https://api.pagar.me/1/transactions", pagarme, {headers: {
-            'Content-Type': 'application/json',
-        }}).then(pedido => console.log("deu certo", pedido)).catch(error => console.log("deu errado", error));
-        // console.log("passou");
-        // console.log(pedido);
+        const pedido = await instanciaAxios.post("transactions", bodyPagarme);
+        await atualizarEstoque(estoque);
+        await esvaziarCarrinho(carrinho);
 
-       return res.json({mensagem: "passeiiiiii"});
+       return res.json({
+           tipo:`${pedido.data.payment_method}`,
+           boleto: `${pedido.data.boleto_url}`,
+           valor: `R$ ${pedido.data.amount / 100}`,
+           Vencimento: `${format(new Date(pedido.data.boleto_expiration_date), "dd-MM-yyyy")}`              
+    });
+    
     } catch (error) {
         console.log(error);
         return res.json(error);

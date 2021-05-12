@@ -9,19 +9,21 @@ async function todosProdutosComEstoque () {
 }
 
 async function lerCarrinho () {
-   return JSON.parse( await fs.readFile("carrinho.json"));
+   return JSON.parse(await fs.readFile("carrinho.json"));
 }
 
 async function atualizarCarrinho (carrinho) {
     await fs.writeFile("carrinho.json", JSON.stringify(carrinho, null, 2));
+    return;
 }
 
 async function lerEstoque () {
-    return JSON.parse (await fs.readFile("data.json"));
+    return JSON.parse(await fs.readFile("data.json"));
 }
 
 async function atualizarEstoque (estoque) {
     await fs.writeFile("data.json", JSON.stringify(estoque, null, 2));
+    return;
 }
 
 function carrinhoVazio () {   
@@ -80,10 +82,10 @@ function validarDados (dados) {
     if(!dados.email.includes(".", indice)) {
         return `O email deve ser um email válido`;
     }
-    if(dados.phone_numbers.length < 13) {
+    if(dados.phone_numbers[0].length < 13) {
         return `O telefone precisa está completo (com prefixo nacional, ddd do estado). Ex: +5571912345678`;
     }
-    if(!dados.phone_numbers.includes("+")) {
+    if(!dados.phone_numbers[0].includes("+")) {
         return `O telefone precisa está completo com o "+" do prefixo nacional.`;
     }
 
