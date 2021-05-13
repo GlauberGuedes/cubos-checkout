@@ -3,5 +3,6 @@
   "dataDeEntrega": null,
   "valorDoFrete": 0,
   "totalAPagar": 0,
+  "cupomDeDesconto": 0,
   "produtos": []
 }
