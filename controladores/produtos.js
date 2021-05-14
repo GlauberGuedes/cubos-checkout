@@ -531,9 +531,7 @@ async function listarEFiltrarVendas(req, res) {
     return;
   }
 
-  res.json({
-    mensagem: "precisa informar uma categoria, id do produto ou data.",
-  });
+  res.json(listaVendas);
 }
 
 module.exports = {

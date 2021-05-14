@@ -101,6 +101,9 @@
           },
           "400": {
             "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       },
@@ -166,7 +169,11 @@
             "type": "string"
           }
         ],
-        "responses": {}
+        "responses": {
+          "400": {
+            "description": "Bad Request"
+          }
+        }
       }
     }
   },
