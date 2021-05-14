@@ -84,8 +84,6 @@ async function listarEFiltrarProdutos(req, res) {
     );
     return res.status(200).json(produtoFiltradoPorCategoria);
   }
-
-  res.status(200).json(filtro);
 }
 
 async function mostrarCarrinho(req, res) {
@@ -104,13 +102,16 @@ async function postarCarrinho(req, res) {
   if (
     !pedido.id ||
     !pedido.quantidade ||
-    !Number(pedido.id) ||
-    !Number(pedido.quantidade) ||
-    Number(pedido.quantidade) <= 0
+    typeof pedido.id !== "number" ||
+    typeof pedido.quantidade !== "number" ||
+    pedido.quantidade <= 0
   ) {
     return res
       .status(404)
-      .json({ mensagem: "É preciso passar id e quantidade do produto!" });
+      .json({
+        mensagem:
+          "É preciso passar id e quantidade do produto. Sendo eles em número.",
+      });
   }
 
   const listaJSON = JSON.parse(await fs.readFile("data.json"));
@@ -121,13 +122,40 @@ async function postarCarrinho(req, res) {
     return res.status(404).json({ mensagem: "Esse produto não existe!" });
   }
 
+  const carrinho = await lerCarrinho();
+
+  const temProdutoNoCarrinho = carrinho.produtos.find(
+    (produtoDoCarrinho) => produtoDoCarrinho.id === pedido.id
+  );
+
+  if (temProdutoNoCarrinho) {
+    if (temProdutoNoCarrinho.quantidade + pedido.quantidade > produto.estoque) {
+      return res
+        .status(404)
+        .json({ mensagem: "Esse produto não tem estoque suficiente!" });
+    }
+
+    temProdutoNoCarrinho.quantidade =
+      temProdutoNoCarrinho.quantidade + pedido.quantidade;
+
+    const momento = new Date();
+
+    carrinho.subtotal = carrinho.subtotal + pedido.quantidade * produto.preco;
+    carrinho.dataDeEntrega = addBusinessDays(momento, 15);
+    carrinho.valorDoFrete = carrinho.subtotal < 20000 ? 5000 : 0;
+    carrinho.totalAPagar = carrinho.subtotal + carrinho.valorDoFrete;
+    carrinho.produtos = carrinho.produtos;
+
+    await atualizarCarrinho(carrinho);
+
+    return res.status(201).json(carrinho);
+  }
+
   if (produto.estoque < pedido.quantidade) {
     return res
       .status(404)
       .json({ mensagem: "Esse produto não tem estoque suficiente!" });
   }
-
-  const carrinho = await lerCarrinho();
 
   const momento = new Date();
 
@@ -182,12 +210,10 @@ async function alterarProduto(req, res) {
   }
 
   if (produtoDoCarrinho.quantidade + quantidade < 0) {
-    return res
-      .status(404)
-      .json({
-        mensagem:
-          "Essa quantidade é maior que a quantidade do produto no carrinho.",
-      });
+    return res.status(404).json({
+      mensagem:
+        "Essa quantidade é maior que a quantidade do produto no carrinho.",
+    });
   }
 
   const momento = new Date();
@@ -270,11 +296,9 @@ async function finalizarCompra(req, res) {
       (produto) => produto.id === produtoDoCarrinho.id
     );
     if (produtoDoEstoque.estoque < produtoDoCarrinho.quantidade) {
-      return res
-        .status(404)
-        .json({
-          mensagem: `Não há estoque para o produto: ${produtoDoCarrinho}.`,
-        });
+      return res.status(404).json({
+        mensagem: `Não há estoque para o produto: ${produtoDoCarrinho}.`,
+      });
     }
   }
 
@@ -297,6 +321,7 @@ async function finalizarCompra(req, res) {
   const dataVencimento = format(addBusinessDays(data, 3), "yyyy-MM-dd");
 
   const cupom = req.query.cupom;
+  let desconto = 0;
 
   if (cupom) {
     if (!Number(cupom)) {
@@ -308,10 +333,8 @@ async function finalizarCompra(req, res) {
       return;
     }
     carrinho.cupomDeDesconto = `${cupom} %`;
-    carrinho.totalAPagar = (
-      carrinho.totalAPagar -
-      (carrinho.totalAPagar * Number(cupom)) / 100
-    ).toFixed(0);
+    desconto = ((carrinho.totalAPagar * Number(cupom)) / 100).toFixed(0);
+    carrinho.totalAPagar = carrinho.totalAPagar - desconto;
   }
 
   const bodyPagarme = {
@@ -334,7 +357,6 @@ async function finalizarCompra(req, res) {
     },
   };
 
-  console.log(bodyPagarme);
   try {
     const pedido = await instanciaAxios.post("transactions", bodyPagarme);
 
@@ -361,6 +383,7 @@ async function finalizarCompra(req, res) {
     return res.json({
       tipo: `${pedido.data.payment_method}`,
       boleto: `${pedido.data.boleto_url}`,
+      desconto: `R$ ${desconto / 100}`,
       valor: `R$ ${pedido.data.amount / 100}`,
       Vencimento: `${format(
         new Date(pedido.data.boleto_expiration_date),
@@ -448,12 +471,10 @@ async function listarEFiltrarVendas(req, res) {
     const dataFinalFormatada = new Date(dataFinal);
 
     if (!dataFinalFormatada || !dataInicialFormatada) {
-      res
-        .status(400)
-        .json({
-          mensagem:
-            "A data tem que vim no formato correto. EX: 2021-05-04T01:18:58.422Z",
-        });
+      res.status(400).json({
+        mensagem:
+          "A data tem que vim no formato correto. EX: 2021-05-04T01:18:58.422Z",
+      });
       return;
     }
 
@@ -474,12 +495,10 @@ async function listarEFiltrarVendas(req, res) {
     const dataInicialFormatada = new Date(dataInicial);
 
     if (!dataInicialFormatada) {
-      res
-        .status(400)
-        .json({
-          mensagem:
-            "A data tem que vim no formato correto. EX: 2021-05-04T01:18:58.422Z",
-        });
+      res.status(400).json({
+        mensagem:
+          "A data tem que vim no formato correto. EX: 2021-05-04T01:18:58.422Z",
+      });
       return;
     }
 
@@ -496,12 +515,10 @@ async function listarEFiltrarVendas(req, res) {
     const dataFinalFormatada = new Date(dataFinal);
 
     if (!dataFinalFormatada) {
-      res
-        .status(400)
-        .json({
-          mensagem:
-            "A data tem que vim no formato correto. EX: 2021-05-04T01:18:58.422Z",
-        });
+      res.status(400).json({
+        mensagem:
+          "A data tem que vim no formato correto. EX: 2021-05-04T01:18:58.422Z",
+      });
       return;
     }
 

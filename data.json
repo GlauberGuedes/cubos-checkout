@@ -4,7 +4,7 @@
       "id": 1,
       "nome": "Pipoca para Microondas Manteiga YOKI 50g",
       "preco": 169,
-      "estoque": 4,
+      "estoque": 6,
       "categoria": "Bazar"
     },
     {
@@ -25,7 +25,7 @@
       "id": 4,
       "nome": "Desinfetante Uso Geral Herbal Omo Frasco 500ml",
       "preco": 529,
-      "estoque": 79,
+      "estoque": 68,
       "categoria": "Limpeza"
     },
     {
